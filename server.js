@@ -8,22 +8,23 @@ const port = 3005;
 
 app.use(cors());
 
-const UA_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36';
-
 async function parseUAKino(title) {
     try {
         const searchUrl = `https://uakino.best/index.php?do=search&subaction=search&story=${encodeURIComponent(title)}`;
-        const searchRes = await axios.get(searchUrl, {
-            headers: { 'User-Agent': UA_USER_AGENT },
-            timeout: 5000
+        const response = await axios.get(searchUrl, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+            timeout: 8000
         });
-        const $search = cheerio.load(searchRes.data);
 
-        const firstLink = $search('.movie-item a').first().attr('href');
+        const $ = cheerio.load(response.data);
+        const firstLink = $('.movie-item a').first().attr('href');
+
         if (!firstLink) return [];
 
-        const movieRes = await axios.get(firstLink, { headers: { 'User-Agent': UA_USER_AGENT } });
-        const $movie = cheerio.load(movieRes.data);
+        const moviePage = await axios.get(firstLink, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+        });
+        const $movie = cheerio.load(moviePage.data);
 
         let iframeSrc = $movie('#video-player iframe').attr('src') || $movie('iframe[src*="vid"]').attr('src');
 
@@ -37,17 +38,20 @@ async function parseUAKino(title) {
         }
         return [];
     } catch (e) {
-        console.log('Помилка парсингу UAKino:', e.message);
+        console.error('Парсинг не вдався:', e.message);
         return [];
     }
 }
 
 app.get('/api/search', async (req, res) => {
-    const { title } = req.query;
-    if (!title) return res.json([]);
-
-    const results = await parseUAKino(title);
-    res.json(results);
+    try {
+        const title = req.query.title;
+        if (!title) return res.json([]);
+        const results = await parseUAKino(title);
+        res.json(results);
+    } catch (err) {
+        res.json([]);
+    }
 });
 
 app.get('/plugin.js', (req, res) => {
@@ -55,4 +59,6 @@ app.get('/plugin.js', (req, res) => {
     res.sendFile(path.join(__dirname, 'plugin.js'));
 });
 
-app.listen(port, () => console.log(`UA PRO Server on ${port}`));
+app.listen(port, '0.0.0.0', () => {
+    console.log(`Server is running on Node 20, port ${port}`);
+});

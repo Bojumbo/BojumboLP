@@ -1,17 +1,15 @@
-FROM node:18-alpine
+# Змінюємо 18 на 20
+FROM node:20-alpine
 
-# Робоча папка всередині контейнера
 WORKDIR /app
 
-# Копіюємо package.json та встановлюємо модулі
 COPY package.json ./
+
+# Встановлюємо залежності
 RUN npm install
 
-# Копіюємо всі інші файли (код сервера і плагіна)
 COPY . .
 
-# Відкриваємо порт
 EXPOSE 3005
 
-# Запускаємо сервер
 CMD ["node", "server.js"]
