@@ -8,50 +8,70 @@ const port = 3005;
 
 app.use(cors());
 
-async function parseUAKino(title) {
+const UA_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
+
+function cleanTitle(str) {
+    if (!str) return "";
+    // Прибираємо спецсимволи, залишаємо тільки букви, цифри та пробіли
+    return str.replace(/[:.,!?-]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+async function getIframeFromUrl(url) {
     try {
-        const searchUrl = `https://uakino.best/index.php?do=search&subaction=search&story=${encodeURIComponent(title)}`;
-        const response = await axios.get(searchUrl, {
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-            timeout: 8000
-        });
+        const res = await axios.get(url, { headers: { 'User-Agent': UA_USER_AGENT }, timeout: 5000 });
+        const $ = cheerio.load(res.data);
+        let iframe = $('#video-player iframe').attr('src') || $('iframe[src*="vid"]').attr('src') || $('iframe[src*="player"]').attr('src');
+        if (iframe && iframe.startsWith('//')) iframe = 'https:' + iframe;
+        return iframe;
+    } catch (e) { return null; }
+}
 
-        const $ = cheerio.load(response.data);
-        const firstLink = $('.movie-item a').first().attr('href');
+async function searchSite(baseUrl, query) {
+    try {
+        const searchUrl = `${baseUrl}/index.php?do=search&subaction=search&story=${encodeURIComponent(cleanTitle(query))}`;
+        const res = await axios.get(searchUrl, { headers: { 'User-Agent': UA_USER_AGENT }, timeout: 5000 });
+        const $ = cheerio.load(res.data);
 
-        if (!firstLink) return [];
+        // Знаходимо перше посилання на фільм
+        // Для UAKino це .movie-item a, для Eneyida це .shortitem a або подібне
+        const link = $('.movie-item a, .shortitem a, .movie-title a').first().attr('href');
+        if (!link) return null;
 
-        const moviePage = await axios.get(firstLink, {
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
-        });
-        const $movie = cheerio.load(moviePage.data);
-
-        let iframeSrc = $movie('#video-player iframe').attr('src') || $movie('iframe[src*="vid"]').attr('src');
-
-        if (iframeSrc) {
-            if (iframeSrc.startsWith('//')) iframeSrc = 'https:' + iframeSrc;
-            return [{
-                title: 'UAKino (Українська озвучка)',
-                url: iframeSrc,
-                quality: 'HD'
-            }];
-        }
-        return [];
-    } catch (e) {
-        console.error('Парсинг не вдався:', e.message);
-        return [];
-    }
+        return await getIframeFromUrl(link);
+    } catch (e) { return null; }
 }
 
 app.get('/api/search', async (req, res) => {
-    try {
-        const title = req.query.title;
-        if (!title) return res.json([]);
-        const results = await parseUAKino(title);
-        res.json(results);
-    } catch (err) {
-        res.json([]);
+    const { q, ua_title } = req.query; // q - оригінальна назва
+    console.log(`Пошук за оригіналом: ${q}`);
+
+    let results = [];
+
+    // Список сайтів для парсингу
+    const sites = [
+        { name: 'UAKino', url: 'https://uakino.best' },
+        { name: 'Eneyida', url: 'https://eneyida.tv' }
+    ];
+
+    for (let site of sites) {
+        // Спочатку шукаємо за оригіналом (англійською)
+        let videoUrl = await searchSite(site.url, q);
+
+        // Якщо не знайшли, пробуємо за українською назвою
+        if (!videoUrl && ua_title) {
+            videoUrl = await searchSite(site.url, ua_title);
+        }
+
+        if (videoUrl) {
+            results.push({
+                title: `${site.name} (UA Dub)`,
+                url: videoUrl,
+                quality: 'HD'
+            });
+        }
     }
+
+    res.json(results);
 });
 
 app.get('/plugin.js', (req, res) => {
@@ -59,6 +79,4 @@ app.get('/plugin.js', (req, res) => {
     res.sendFile(path.join(__dirname, 'plugin.js'));
 });
 
-app.listen(port, '0.0.0.0', () => {
-    console.log(`Server is running on Node 20, port ${port}`);
-});
+app.listen(port, '0.0.0.0', () => console.log(`UA Search (Original Title Priority) on port ${port}`));
