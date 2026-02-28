@@ -1,6 +1,6 @@
 /**
  * @name UA Online Pro
- * @version 2.0.0
+ * @version 2.1.0
  */
 (function () {
     'use strict';
@@ -16,17 +16,17 @@
                 var container = render.find('.full-start-new__buttons, .full-start__buttons');
 
                 if (container.length > 0 && !container.find('.ua-online-btn').length) {
-                    var btn = $('<div class="full-start__button selector view--btn ua-online-btn" style="background-color: #0057b7 !important; color: #ffd700 !important; font-weight: bold; border-radius: 5px;">🇺🇦 UA Online</div>');
+                    var btn = $('<div class="full-start__button selector view--btn ua-online-btn" style="background-color: #0057b7 !important; color: #ffd700 !important; font-weight: bold;">UA Online</div>');
 
                     btn.on('hover:enter hover:click hover:touch', function () {
                         Lampa.Loading.start();
 
                         var movie = e.object.data || e.data;
-                        var original = movie.original_title || movie.original_name || "";
-                        var title_ua = movie.title || movie.name || "";
+                        var title = movie.title || movie.name;
+                        var id = movie.id; // TMDB ID
 
-                        // Надсилаємо запит
-                        var api = backend_url + '/api/search?q=' + encodeURIComponent(original) + '&ua_title=' + encodeURIComponent(title_ua);
+                        // Відправляємо ID на сервер
+                        var api = backend_url + '/api/search?id=' + id + '&title=' + encodeURIComponent(title);
 
                         var network = new Lampa.Reguest();
                         network.silent(api, function (results) {
@@ -38,19 +38,17 @@
                                     onSelect: function (item) {
                                         Lampa.Player.run({
                                             url: item.url,
-                                            title: title_ua
+                                            title: title
                                         });
                                     },
-                                    onBack: function () {
-                                        Lampa.Controller.toggle('full');
-                                    }
+                                    onBack: function () { Lampa.Controller.toggle('full'); }
                                 });
                             } else {
-                                Lampa.Noty.show('Української озвучки не знайдено на UAKino/Eneyida');
+                                Lampa.Noty.show('Української озвучки не знайдено');
                             }
                         }, function () {
                             Lampa.Loading.stop();
-                            Lampa.Noty.show('Сервер не відповідає');
+                            Lampa.Noty.show('Помилка сервера');
                         });
                     });
 
