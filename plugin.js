@@ -16,7 +16,7 @@
                 var container = render.find('.full-start-new__buttons, .full-start__buttons');
 
                 if (container.length > 0 && !container.find('.ua-online-btn').length) {
-                    var btn = $('<div class="full-start__button selector view--btn ua-online-btn" style="background-color: #0057b7 !important; color: #ffd700 !important; font-weight: bold;">UA Online</div>');
+                    var btn = $('<div class="full-start__button selector view--btn ua-online-btn" style="background-color: #0057b7 !important; color: #ffd700 !important; font-weight: bold;">UA</div>');
 
                     btn.on('hover:enter hover:click hover:touch', function () {
                         Lampa.Loading.start();
