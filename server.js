@@ -1,42 +1,59 @@
 const express = require('express');
 const cors = require('cors');
+const axios = require('axios');
+const cheerio = require('cheerio');
 const path = require('path');
 const app = express();
 const port = 3005;
 
-// Дозволяємо CORS (Cross-Origin Resource Sharing)
-// Це критично важливо для того, щоб Lampa могла робити запити до твого сервера
 app.use(cors());
 
-// 1. Ендпоінт для отримання посилання на відео
-// Сюди Lampa звертається, коли ти натискаєш кнопку "Мій Сервер"
-app.get('/api/stream', (req, res) => {
-    const { id, title } = req.query;
-    console.log(`Запит на відео: ${title} (ID: ${id})`);
+const UA_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36';
 
-    // Зараз ми віддаємо тестовий мультик Big Buck Bunny.
-    // Коли ти захочеш додати реальні фільми, ти зміниш цей блок.
-    res.json({
-        url: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-        quality: '1080p',
-        subtitles: []
-    });
+// Функція пошуку на UAKino
+async function parseUAKino(title) {
+    try {
+        const searchUrl = `https://uakino.best/index.php?do=search&subaction=search&story=${encodeURIComponent(title)}`;
+        const searchRes = await axios.get(searchUrl, { headers: { 'User-Agent': UA_USER_AGENT } });
+        const $search = cheerio.load(searchRes.data);
+
+        const firstLink = $('.movie-item a').first().attr('href');
+        if (!firstLink) return [];
+
+        const movieRes = await axios.get(firstLink, { headers: { 'User-Agent': UA_USER_AGENT } });
+        const $movie = cheerio.load(movieRes.data);
+
+        // Шукаємо iframe плеєра
+        let iframeSrc = $movie('#video-player iframe').attr('src') || $movie('iframe[src*="vid"]').attr('src');
+
+        if (iframeSrc) {
+            if (iframeSrc.startsWith('//')) iframeSrc = 'https:' + iframeSrc;
+            return [{
+                title: 'UAKino (Українська озвучка)',
+                url: iframeSrc,
+                quality: 'HD'
+            }];
+        }
+        return [];
+    } catch (e) {
+        console.log('UAKino error:', e.message);
+        return [];
+    }
+}
+
+app.get('/api/search', async (req, res) => {
+    const { title } = req.query;
+    console.log('Пошук контенту для:', title);
+
+    // Можна додати пошук по декількох сайтах одночасно
+    const results = await parseUAKino(title);
+
+    res.json(results);
 });
 
-// 2. Ендпоінт, який віддає сам файл плагіна (plugin.js)
-// Lampa завантажує його один раз при старті програми
 app.get('/plugin.js', (req, res) => {
     res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate'); // Щоб не кешувалося
     res.sendFile(path.join(__dirname, 'plugin.js'));
 });
 
-// 3. Запуск сервера
-app.listen(port, () => {
-    console.log(`========================================`);
-    console.log(`Lampa Backend Server is running!`);
-    console.log(`Port: ${port}`);
-    console.log(`Domain: https://tv.bojumbohost.pp.ua`);
-    console.log(`Plugin URL: https://tv.bojumbohost.pp.ua/plugin.js`);
-    console.log(`========================================`);
-});
+app.listen(port, () => console.log(`UA PRO Server on ${port}`));

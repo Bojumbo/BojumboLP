@@ -1,74 +1,63 @@
-/**
- * @name Власний Сервер
- * @version 1.0.3
- * @description Виправлено для нового лейауту Lampa
- * @author Bogdan
- */
-
 (function () {
     'use strict';
 
-    if (window.my_custom_plugin_loaded) return;
-    window.my_custom_plugin_loaded = true;
-
     var backend_url = 'https://tv.bojumbohost.pp.ua';
 
-    function myPlugin() {
+    function myUA_Plugin() {
         Lampa.Listener.follow('full', function (e) {
             if (e.type == 'complite') {
                 var render = e.object.activity.render();
+                var container = render.find('.full-start-new__buttons, .full-start__buttons');
 
-                // ШУКАЄМО ТВОЮ НОВУ ПАНЕЛЬ КНОПОК
-                var container = render.find('.full-start-new__buttons');
-
-                // Якщо не знайшли нову, шукаємо старі (про всяк випадок)
-                if (container.length === 0) {
-                    container = render.find('.full-start__buttons, .full-buttons');
-                }
-
-                if (container.length > 0) {
-                    if (container.find('.my-server-btn').length > 0) return;
-
-                    // Створюємо кнопку (зробив її в стилі Lampa, але з червоним акцентом)
-                    var btn = $('<div class="full-start__button selector view--btn my-server-btn" style="background-color: #e50914 !important; color: #fff !important;">Мій Сервер</div>');
+                if (container.length > 0 && !container.find('.ua-online-btn').length) {
+                    // Використовуємо іконку та стиль як у професійних плагінів
+                    var btn = $('<div class="full-start__button selector view--btn ua-online-btn" style="background-color: #0057b7 !important; color: #ffd700 !important; font-weight: bold;">🇺🇦 UA Online</div>');
 
                     btn.on('hover:enter hover:click hover:touch', function () {
                         Lampa.Loading.start();
 
-                        var movie_data = e.object.data || e.data;
-                        var title = movie_data.title || movie_data.name;
-                        var api_url = backend_url + '/api/stream?id=' + movie_data.id + '&title=' + encodeURIComponent(title);
+                        var movie = e.object.data || e.data;
+                        var title = movie.title || movie.name;
+
+                        var api = backend_url + '/api/search?title=' + encodeURIComponent(title);
 
                         var network = new Lampa.Reguest();
-                        network.silent(api_url, function (json) {
+                        network.silent(api, function (results) {
                             Lampa.Loading.stop();
-                            if (json.url) {
-                                Lampa.Player.play({
-                                    url: json.url,
-                                    title: title,
-                                    timeline: movie_data
+
+                            if (results && results.length > 0) {
+                                // Якщо знайдено декілька варіантів (озвучок/сайтів), показуємо список
+                                Lampa.Select.show({
+                                    title: 'Оберіть джерело (UA)',
+                                    items: results,
+                                    onSelect: function (item) {
+                                        Lampa.Player.run({
+                                            url: item.url,
+                                            title: title
+                                        });
+                                    },
+                                    onBack: function () {
+                                        Lampa.Controller.toggle('full');
+                                    }
                                 });
                             } else {
-                                Lampa.Noty.show('Відео не знайдено');
+                                Lampa.Noty.show('Української озвучки не знайдено');
                             }
-                        }, function (a, c) {
+                        }, function () {
                             Lampa.Loading.stop();
-                            Lampa.Noty.show('Помилка сервера: ' + network.errorDecode(a, c));
+                            Lampa.Noty.show('Помилка сервера UA');
                         });
                     });
 
-                    // Додаємо кнопку в кінець списку кнопок
                     container.append(btn);
-
-                    // Обов'язково змушуємо Lampa перерахувати навігацію пультом/клавіатурою
                     Lampa.Controller.enable('full');
                 }
             }
         });
     }
 
-    if (window.appready) myPlugin();
+    if (window.appready) myUA_Plugin();
     else Lampa.Listener.follow('app', function (e) {
-        if (e.type == 'ready') myPlugin();
+        if (e.type == 'ready') myUA_Plugin();
     });
 })();
