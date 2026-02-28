@@ -26,12 +26,9 @@ app.get('/api/stream', (req, res) => {
 // 2. Ендпоінт, який віддає сам файл плагіна (plugin.js)
 // Lampa завантажує його один раз при старті програми
 app.get('/plugin.js', (req, res) => {
-    const filePath = path.join(__dirname, 'plugin.js');
-
-    // Встановлюємо правильний MIME-тип, щоб Lampa розпізнала файл як JavaScript код
     res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
-
-    res.sendFile(filePath);
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate'); // Щоб не кешувалося
+    res.sendFile(path.join(__dirname, 'plugin.js'));
 });
 
 // 3. Запуск сервера
