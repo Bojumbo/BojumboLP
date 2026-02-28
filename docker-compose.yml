@@ -2,14 +2,8 @@ version: '3.8'
 
 services:
   lampa-backend:
-    image: node:18-alpine
     container_name: lampa_backend
-    working_dir: /app
-    # Команда: встановити залежності і запустити
-    command: sh -c "npm install && node server.js"
-    volumes:
-      # Монтуємо поточну папку з гітхаба всередину контейнера
-      - ./:/app
+    build: .
     ports:
       - "3005:3005"
     restart: always
