@@ -1,5 +1,14 @@
+/**
+ * @name UA Online
+ * @version 1.0.5
+ * @description Українська озвучка з UAKino
+ * @author Bogdan
+ */
 (function () {
     'use strict';
+
+    if (window.ua_plugin_loaded) return;
+    window.ua_plugin_loaded = true;
 
     var backend_url = 'https://tv.bojumbohost.pp.ua';
 
@@ -10,15 +19,13 @@
                 var container = render.find('.full-start-new__buttons, .full-start__buttons');
 
                 if (container.length > 0 && !container.find('.ua-online-btn').length) {
-                    // Використовуємо іконку та стиль як у професійних плагінів
-                    var btn = $('<div class="full-start__button selector view--btn ua-online-btn" style="background-color: #0057b7 !important; color: #ffd700 !important; font-weight: bold;">🇺🇦 UA Online</div>');
+                    var btn = $('<div class="full-start__button selector view--btn ua-online-btn" style="background-color: #0057b7 !important; color: #ffd700 !important; font-weight: bold; border-radius: 5px;">🇺🇦 UA Online</div>');
 
                     btn.on('hover:enter hover:click hover:touch', function () {
                         Lampa.Loading.start();
 
                         var movie = e.object.data || e.data;
                         var title = movie.title || movie.name;
-
                         var api = backend_url + '/api/search?title=' + encodeURIComponent(title);
 
                         var network = new Lampa.Reguest();
@@ -26,7 +33,6 @@
                             Lampa.Loading.stop();
 
                             if (results && results.length > 0) {
-                                // Якщо знайдено декілька варіантів (озвучок/сайтів), показуємо список
                                 Lampa.Select.show({
                                     title: 'Оберіть джерело (UA)',
                                     items: results,

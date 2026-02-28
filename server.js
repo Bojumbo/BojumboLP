@@ -10,20 +10,21 @@ app.use(cors());
 
 const UA_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36';
 
-// Функція пошуку на UAKino
 async function parseUAKino(title) {
     try {
         const searchUrl = `https://uakino.best/index.php?do=search&subaction=search&story=${encodeURIComponent(title)}`;
-        const searchRes = await axios.get(searchUrl, { headers: { 'User-Agent': UA_USER_AGENT } });
+        const searchRes = await axios.get(searchUrl, {
+            headers: { 'User-Agent': UA_USER_AGENT },
+            timeout: 5000
+        });
         const $search = cheerio.load(searchRes.data);
 
-        const firstLink = $('.movie-item a').first().attr('href');
+        const firstLink = $search('.movie-item a').first().attr('href');
         if (!firstLink) return [];
 
         const movieRes = await axios.get(firstLink, { headers: { 'User-Agent': UA_USER_AGENT } });
         const $movie = cheerio.load(movieRes.data);
 
-        // Шукаємо iframe плеєра
         let iframeSrc = $movie('#video-player iframe').attr('src') || $movie('iframe[src*="vid"]').attr('src');
 
         if (iframeSrc) {
@@ -36,18 +37,16 @@ async function parseUAKino(title) {
         }
         return [];
     } catch (e) {
-        console.log('UAKino error:', e.message);
+        console.log('Помилка парсингу UAKino:', e.message);
         return [];
     }
 }
 
 app.get('/api/search', async (req, res) => {
     const { title } = req.query;
-    console.log('Пошук контенту для:', title);
+    if (!title) return res.json([]);
 
-    // Можна додати пошук по декількох сайтах одночасно
     const results = await parseUAKino(title);
-
     res.json(results);
 });
 
